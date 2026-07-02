@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenClaw Cron Schedule Builder</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-secondary: #8b949e;
+    --accent: #58a6ff;
+    --accent-hover: #79c0ff;
+    --green: #3fb950;
+    --orange: #d29922;
+    --red: #f85149;
+    --purple: #bc8cff;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+  .container { max-width: 960px; margin: 0 auto; padding: 24px 16px; }
+  header {
+    text-align: center;
+    padding: 40px 0 32px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 32px;
+  }
+  header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), var(--purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  header p { color: var(--text-secondary); margin-top: 8px; font-size: 0.95rem; }
+  .section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .section h2 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--accent);
+  }
+  .field-group {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    font-weight: 600;
+  }
+  .field select, .field input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: var(--text);
+    font-size: 0.9rem;
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  }
+  .field select:focus, .field input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(88,166,255,0.15);
+  }
+  .field select option { background: var(--surface); }
+  .checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+  }
+  .checkbox-row label { font-size: 0.9rem; cursor: pointer; }
+  .checkbox-row input[type="checkbox"] {
+    accent-color: var(--accent);
+    width: 16px; height: 16px;
+  }
+  .output-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 640px) { .output-section { grid-template-columns: 1fr; } }
+  .output-box {
+    background: #010409;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px;
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 0.85rem;
+    white-space: pre-wrap;
+    word-break: break-all;
+    min-height: 80px;
+    position: relative;
+  }
+  .output-box .label {
+    position: absolute;
+    top: -10px;
+    left: 12px;
+    background: var(--surface);
+    padding: 0 6px;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  .output-box .copy-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .output-box .copy-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .output-box .copy-btn.copied {
+    border-color: var(--green);
+    color: var(--green);
+  }
+  .description {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 1rem;
+    color: var(--accent);
+    text-align: center;
+    padding: 12px;
+    background: rgba(88,166,255,0.06);
+    border: 1px solid rgba(88,166,255,0.15);
+    border-radius: 8px;
+    margin: 16px 0;
+  }
+  .preview-times {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.8;
+  }
+  .preview-times code {
+    background: var(--bg);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.8rem;
+  }
+  .templates {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .template-btn {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    text-align: center;
+    transition: all 0.15s;
+  }
+  .template-btn:hover {
+    border-color: var(--accent);
+    background: rgba(88,166,255,0.06);
+  }
+  .template-btn .name { display: block; font-weight: 600; }
+  .template-btn .expr { display: block; font-family: monospace; font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px; }
+  .note {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    padding: 12px;
+    background: rgba(210,153,34,0.06);
+    border: 1px solid rgba(210,153,34,0.15);
+    border-radius: 6px;
+    margin-top: 16px;
+  }
+  footer {
+    text-align: center;
+    padding: 32px 0;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    border-top: 1px solid var(--border);
+    margin-top: 32px;
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>⏰ OpenClaw Cron Builder</h1>
+    <p>Build cron expressions and generate OpenClaw config snippets for scheduled jobs.</p>
+  </header>
+
+  <div class="section">
+    <h2>📋 Quick Templates</h2>
+    <div class="templates" id="templates">
+      <button class="template-btn" data-expr="0 * * * *"><span class="name">Every Hour</span><span class="expr">0 * * * *</span></button>
+      <button class="template-btn" data-expr="0 */6 * * *"><span class="name">Every 6 Hours</span><span class="expr">0 */6 * * *</span></button>
+      <button class="template-btn" data-expr="0 9 * * *"><span class="name">Daily 9 AM</span><span class="expr">0 9 * * *</span></button>
+      <button class="template-btn" data-expr="0 9 * * 1-5"><span class="name">Weekdays 9 AM</span><span class="expr">0 9 * * 1-5</span></button>
+      <button class="template-btn" data-expr="*/15 * * * *"><span class="name">Every 15 Min</span><span class="expr">*/15 * * * *</span></button>
+      <button class="template-btn" data-expr="0 0 * * 0"><span class="name">Weekly Sunday</span><span class="expr">0 0 * * 0</span></button>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>🎛️ Manual Builder</h2>
+    <div class="field-group">
+      <div class="field">
+        <label>Minute</label>
+        <select id="minute">
+          <option value="*">Every (*)</option>
+          <option value="0">:00</option>
+          <option value="5">:05</option>
+          <option value="10">:10</option>
+          <option value="15">:15</option>
+          <option value="30">:30</option>
+          <option value="45">:45</option>
+          <option value="*/5">Every 5</option>
+          <option value="*/10">Every 10</option>
+          <option value="*/15" selected>Every 15</option>
+          <option value="*/30">Every 30</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Hour</label>
+        <select id="hour">
+          <option value="*" selected>Every (*)</option>
+          <option value="0">12 AM (0)</option>
+          <option value="6">6 AM</option>
+          <option value="9">9 AM</option>
+          <option value="12">12 PM</option>
+          <option value="18">6 PM</option>
+          <option value="*/6">Every 6 hours</option>
+          <option value="*/12">Every 12 hours</option>
+          <option value="9,18">9 AM &amp; 6 PM</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Day of Month</label>
+        <select id="dom">
+          <option value="*" selected>Every (*)</option>
+          <option value="1">1st</option>
+          <option value="15">15th</option>
+          <option value="1,15">1st &amp; 15th</option>
+          <option value="*/7">Every 7 days</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Month</label>
+        <select id="month">
+          <option value="*" selected>Every (*)</option>
+          <option value="1">Jan</option>
+          <option value="3">Mar</option>
+          <option value="6">Jun</option>
+          <option value="9">Sep</option>
+          <option value="12">Dec</option>
+          <option value="1,7">Jan &amp; Jul</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Day of Week</label>
+        <select id="dow">
+          <option value="*" selected>Any (*)</option>
+          <option value="0">Sunday</option>
+          <option value="1">Monday</option>
+          <option value="1-5">Weekdays</option>
+          <option value="0,6">Weekends</option>
+          <option value="6">Saturday</option>
+        </select>
+      </div>
+    </div>
+    <div class="description" id="humanDesc">Every 15 minutes</div>
+    <div class="output-section">
+      <div class="output-box" id="cronDisplay">
+        <span class="label">Cron Expression</span>
+        <button class="copy-btn" onclick="copyText('cronDisplay')">Copy</button>
+        <span id="cronExpr">*/15 * * * *</span>
+      </div>
+      <div class="output-box" id="configDisplay">
+        <span class="label">OpenClaw Config</span>
+        <button class="copy-btn" onclick="copyText('configDisplay')">Copy</button>
+        <span id="configSnippet"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>📅 Next 5 Trigger Times</h2>
+    <div class="preview-times" id="previewTimes">Select a schedule to preview.</div>
+  </div>
+
+  <div class="section">
+    <h2>🔧 Raw Expression</h2>
+    <p style="color:var(--text-secondary);font-size:0.9rem;margin-bottom:12px;">Prefer typing directly? Enter any valid cron expression.</p>
+    <input type="text" id="rawExpr" value="*/15 * * * *" placeholder="e.g. 0 9 * * 1-5"
+           style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px 14px;
+                  color:var(--text);font-family:monospace;font-size:1rem;">
+  </div>
+
+  <div class="note">
+    <strong>⏱ Timezone note:</strong> OpenClaw cron expressions use the Gateway's host local timezone by default. 
+    To use a specific timezone, add <code>"tz": "Australia/Sydney"</code> to your schedule object.
+  </div>
+
+  <footer>
+    <p>Built for the OpenClaw community · <a href="https://github.com/jarvis-ops" target="_blank">JARVIS Ops</a></p>
+  </footer>
+</div>
+
+<script>
+const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function describeCron(expr) {
+  const parts = expr.trim().split(/\s+/);
+  if (parts.length !== 5) return 'Invalid cron expression (need exactly 5 fields)';
+  const [min, hour, dom, mon, dow] = parts;
+  const desc = [];
+  
+  if (dow !== '*' || dom !== '*') {
+    const days = dow === '*' ? 'any day' : dow.split(',').map(d => {
+      if (d.includes('-')) {
+        const [a, b] = d.split('-');
+        return DAYS[parseInt(a)] + '-' + DAYS[parseInt(b)];
+      }
+      return DAYS[parseInt(d)] || d;
+    }).join(', ');
+    desc.push(days);
+  }
+  
+  if (mon !== '*') desc.push('in ' + mon.split(',').map(m => MONTHS[parseInt(m)-1] || m).join(', '));
+  
+  const timeStr = [];
+  if (hour === '*' && min === '*') {
+    if (desc.length === 0) return 'Every minute';
+    return 'Every minute, ' + desc.join(', ');
+  }
+  if (hour === '*') {
+    if (min.startsWith('*/')) timeStr.push('every ' + min.slice(2) + ' minutes');
+    else if (min === '*') timeStr.push('every minute');
+    else timeStr.push('at minute ' + min);
+  } else if (hour.startsWith('*/')) {
+    const interval = hour.slice(2);
+    if (min === '0') timeStr.push('every ' + interval + ' hours');
+    else timeStr.push('every ' + interval + ' hours at :' + min.padStart(2, '0'));
+  } else if (hour.includes(',')) {
+    const hrs = hour.split(',').map(h => {
+      const hh = parseInt(h);
+      const ampm = hh >= 12 ? 'PM' : 'AM';
+      const h12 = hh === 0 ? 12 : hh > 12 ? hh - 12 : hh;
+      return h12 + ':00 ' + ampm;
+    });
+    if (min === '0') timeStr.push('at ' + hrs.join(', '));
+    else timeStr.push('at :' + min.padStart(2, '0') + ' past ' + hrs.join(', '));
+  } else {
+    const hh = parseInt(hour);
+    const ampm = hh >= 12 ? 'PM' : 'AM';
+    const h12 = hh === 0 ? 12 : hh > 12 ? hh - 12 : hh;
+    if (min === '0') timeStr.push('at ' + h12 + ':00 ' + ampm);
+    else timeStr.push('at ' + h12 + ':' + min.padStart(2, '0') + ' ' + ampm);
+  }
+  
+  if (desc.length === 0) return timeStr.join(', ').charAt(0).toUpperCase() + timeStr.join(', ').slice(1);
+  return (timeStr.join(', ') + ', ' + desc.join(', ')).replace(/^./, c => c.toUpperCase());
+}
+
+function getNextTimes(expr, count = 5) {
+  const parts = expr.trim().split(/\s+/);
+  if (parts.length !== 5) return [];
+  
+  const [minField, hourField, domField, monField, dowField] = parts;
+  
+  function matches(value, field) {
+    if (field === '*') return true;
+    for (const part of field.split(',')) {
+      if (part.startsWith('*/')) {
+        const step = parseInt(part.slice(2));
+        if (value % step === 0) return true;
+      } else if (part.includes('-')) {
+        const [a, b] = part.split('-').map(Number);
+        if (value >= a && value <= b) return true;
+      } else if (part.includes('/')) {
+        const [range, step] = part.split('/');
+        if (range === '*') { if (value % parseInt(step) === 0) return true; }
+      } else if (parseInt(part) === value) return true;
+    }
+    return false;
+  }
+  
+  const now = new Date();
+  now.setSeconds(0, 0);
+  const results = [];
+  let candidate = new Date(now);
+  
+  let tries = 0;
+  while (results.length < count && tries < 525600) {
+    tries++;
+    candidate.setMinutes(candidate.getMinutes() + 1);
+    
+    if (!matches(candidate.getMinutes(), minField)) continue;
+    if (!matches(candidate.getHours(), hourField)) continue;
+    if (!matches(candidate.getDate(), domField)) continue;
+    if (!matches(candidate.getMonth() + 1, monField)) continue;
+    if (!matches(candidate.getDay(), dowField)) continue;
+    
+    results.push(new Date(candidate));
+  }
+  return results;
+}
+
+function formatDate(d) {
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const h = d.getHours();
+  const m = d.getMinutes();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]} ${h12}:${String(m).padStart(2,'0')} ${ampm}`;
+}
+
+function generateConfig(expr) {
+  return JSON.stringify({
+    "name": "my-scheduled-task",
+    "schedule": {
+      "kind": "cron",
+      "expr": expr,
+      "tz": "Australia/Sydney"
+    },
+    "sessionTarget": "isolated",
+    "payload": {
+      "kind": "agentTurn",
+      "message": "Run scheduled task."
+    }
+  }, null, 2);
+}
+
+let prevExpr = '*/15 * * * *';
+
+function updateFromBuilder() {
+  const m = document.getElementById('minute').value;
+  const h = document.getElementById('hour').value;
+  const dom = document.getElementById('dom').value;
+  const mon = document.getElementById('month').value;
+  const dow = document.getElementById('dow').value;
+  const expr = `${m} ${h} ${dom} ${mon} ${dow}`;
+  setExpr(expr);
+}
+
+function setExpr(expr) {
+  if (expr === prevExpr) return;
+  prevExpr = expr;
+  
+  document.getElementById('rawExpr').value = expr;
+  document.getElementById('cronExpr').textContent = expr;
+  document.getElementById('humanDesc').textContent = describeCron(expr);
+  document.getElementById('configSnippet').textContent = generateConfig(expr);
+  
+  const times = getNextTimes(expr, 5);
+  const previewEl = document.getElementById('previewTimes');
+  if (times.length === 0) {
+    previewEl.innerHTML = 'Could not compute next trigger times. Check your expression.';
+  } else {
+    previewEl.innerHTML = times.map(t => '<code>' + formatDate(t) + '</code>').join('<br>');
+  }
+  
+  updateSelectsFromExpr(expr);
+}
+
+function updateSelectsFromExpr(expr) {
+  const parts = expr.trim().split(/\s+/);
+  if (parts.length !== 5) return;
+  
+  const selects = ['minute', 'hour', 'dom', 'month', 'dow'];
+  for (let i = 0; i < 5; i++) {
+    const sel = document.getElementById(selects[i]);
+    const opt = Array.from(sel.options).find(o => o.value === parts[i]);
+    if (opt) sel.value = parts[i];
+    else {
+      // Check if there's a matching option value
+      sel.value = parts[i];
+    }
+  }
+}
+
+function copyText(elementId) {
+  const el = document.getElementById(elementId);
+  const textEl = el.querySelector('span:last-child');
+  const text = textEl.textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = el.querySelector('.copy-btn');
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = 'Copy';
+      btn.classList.remove('copied');
+    }, 2000);
+  }).catch(() => {
+    // Fallback
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+    const btn = el.querySelector('.copy-btn');
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = 'Copy';
+      btn.classList.remove('copied');
+    }, 2000);
+  });
+}
+
+// Event listeners
+document.querySelectorAll('.template-btn').forEach(btn => {
+  btn.addEventListener('click', () => setExpr(btn.dataset.expr));
+});
+
+document.querySelectorAll('#minute, #hour, #dom, #month, #dow').forEach(sel => {
+  sel.addEventListener('change', updateFromBuilder);
+});
+
+document.getElementById('rawExpr').addEventListener('input', function() {
+  if (this.value.trim() !== prevExpr) {
+    setExpr(this.value.trim());
+  }
+});
+
+// Initialize
+setExpr('*/15 * * * *');
+</script>
+</body>
+</html>
